@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Wealth in Cash</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1B5E3B">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:#F4F1E8;color:#1A1A1A}
+  header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 4px}
+  h1{font-size:20px;margin:0;letter-spacing:-.2px}
+  .iconbtn{border:0;background:#fff;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.12);cursor:pointer}
+  .iconbtn svg{width:22px;height:22px;stroke:#1B5E3B;fill:none;stroke-width:2;stroke-linecap:round}
+  main{padding:4px 16px 24px;max-width:560px;margin:0 auto}
+  .amount{text-align:center;padding:10px 0 6px;cursor:pointer}
+  .amount .amt{font-size:38px;font-weight:800;letter-spacing:-.5px}
+  .amount .hint{font-size:13px;color:#666;margin-top:2px}
+  .tabs{display:flex;gap:8px;margin:12px 0}
+  .tabs button{flex:1;border:0;padding:10px 4px;border-radius:999px;font-size:15px;font-weight:600;background:#E7E2D3;color:#444;cursor:pointer}
+  .tabs button.on{background:#1B5E3B;color:#fff}
+  .view{background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 5px rgba(0,0,0,.08)}
+  .view.hidden{display:none}
+  canvas{width:100%;height:300px;display:block}
+  .stats{font-size:15px;line-height:1.55;margin-top:10px}
+  .stats b{font-size:16px}
+  .stats .sub{color:#666;font-size:13px}
+  .extras{margin-top:12px;background:#fff;border-radius:16px;padding:14px;box-shadow:0 1px 5px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .extras .line{font-size:15px;line-height:1.55}
+  .extras .line .sub{color:#666;font-size:13px}
+  #shareBtn{border:0;background:#1B5E3B;color:#fff;font-size:14px;font-weight:700;padding:11px 14px;border-radius:999px;cursor:pointer;white-space:nowrap}
+  .fine{font-size:12px;color:#888;text-align:center;margin:16px 8px 0;line-height:1.5}
+  .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:10}
+  .backdrop.open{display:block}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;background:#fff;border-radius:20px 20px 0 0;padding:18px 18px 26px;max-width:560px;margin:0 auto;transform:translateY(105%);transition:transform .25s ease;max-height:88vh;overflow:auto}
+  .sheet.open{transform:translateY(0)}
+  .sheet h2{font-size:18px;margin:0 0 14px;display:flex;justify-content:space-between;align-items:center}
+  .sheet h2 button{border:0;background:#eee;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer}
+  .sheet label{font-size:13px;font-weight:700;color:#444;display:block;margin:14px 0 6px}
+  .sheet input[type=range]{width:100%}
+  .sheet input[type=number],.sheet input[type=text]{width:100%;font-size:18px;padding:10px;border:1.5px solid #ccc;border-radius:10px}
+  .presets,.denoms{display:flex;gap:8px;flex-wrap:wrap}
+  .presets button,.denoms button{border:1.5px solid #ccc;background:#fff;padding:9px 12px;border-radius:999px;font-size:15px;font-weight:600;cursor:pointer}
+  .presets button.on,.denoms button.on{background:#1B5E3B;color:#fff;border-color:#1B5E3B}
+  .row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+  .row span{font-size:14px}
+  .row input{width:52px;height:30px;accent-color:#1B5E3B}
+  .done{width:100%;margin-top:20px;border:0;background:#1B5E3B;color:#fff;font-size:16px;font-weight:700;padding:13px;border-radius:999px;cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>Wealth in Cash</h1>
+  <button class="iconbtn" id="gearBtn" aria-label="Settings">
+    <svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>
+  </button>
+</header>
+<main>
+  <div class="amount" id="amountBox">
+    <div class="amt" id="amountText"></div>
+    <div class="hint">tap to change &middot; if it were all cash</div>
+  </div>
+
+  <div class="tabs">
+    <button data-view="stack" class="on">Stack</button>
+    <button data-view="bundles">Bundles</button>
+    <button data-view="spread">Spread</button>
+  </div>
+
+  <section class="view" id="view-stack">
+    <canvas id="cv-stack"></canvas>
+    <div class="stats" id="stats-stack"></div>
+  </section>
+  <section class="view hidden" id="view-bundles">
+    <canvas id="cv-bundles"></canvas>
+    <div class="stats" id="stats-bundles"></div>
+  </section>
+  <section class="view hidden" id="view-spread">
+    <canvas id="cv-spread"></canvas>
+    <div class="stats" id="stats-spread"></div>
+  </section>
+
+  <div class="extras">
+    <div class="line" id="extrasText"></div>
+    <button id="shareBtn">Share image</button>
+  </div>
+
+  <p class="fine">Everything runs on your phone. Nothing is sent anywhere.<br>Note size, thickness and weight are approximate. Notes are stylised, not replicas.</p>
+</main>
+
+<div class="backdrop" id="backdrop"></div>
+<aside class="sheet" id="sheet">
+  <h2>Settings <button id="closeSheet" aria-label="Close">&times;</button></h2>
+
+  <label for="amountRange">Net worth</label>
+  <input type="range" id="amountRange" min="0" max="1000" step="1">
+  <input type="number" id="amountInput" inputmode="numeric" min="0" max="1000000000" step="1000" style="margin-top:8px">
+
+  <label>Quick amounts</label>
+  <div class="presets" id="presets">
+    <button data-amt="100000">&#8377;1L</button>
+    <button data-amt="1000000">&#8377;10L</button>
+    <button data-amt="10000000">&#8377;1Cr</button>
+    <button data-amt="100000000">&#8377;10Cr</button>
+  </div>
+
+  <label>Denomination</label>
+  <div class="denoms" id="denoms">
+    <button data-denom="10">&#8377;10</button>
+    <button data-denom="20">&#8377;20</button>
+    <button data-denom="50">&#8377;50</button>
+    <button data-denom="100">&#8377;100</button>
+    <button data-denom="200">&#8377;200</button>
+    <button data-denom="500">&#8377;500</button>
+  </div>
+
+  <label for="dailyInput">Spend per day (for "how long it lasts")</label>
+  <input type="number" id="dailyInput" inputmode="numeric" min="0" step="100">
+
+  <div class="row">
+    <span>Remember on this device<br><span style="color:#888;font-size:12px">Off = always starts at &#8377;10L</span></span>
+    <input type="checkbox" id="rememberChk">
+  </div>
+
+  <button class="done" id="doneBtn">Done</button>
+</aside>
+<script>
+const DENOMS = [
+  {v:10,  color:'#8D6E63', ink:'#FFF8E1', w:123, h:63},
+  {v:20,  color:'#AEBB4A', ink:'#1A1A1A', w:129, h:63},
+  {v:50,  color:'#5AA9E6', ink:'#0B2A4A', w:135, h:66},
+  {v:100, color:'#9B8AC4', ink:'#241A3F', w:142, h:66},
+  {v:200, color:'#EAB308', ink:'#3A2E00', w:146, h:66},
+  {v:500, color:'#7E8C7F', ink:'#10231A', w:150, h:66},
+];
+const PACKET = 100, BUNDLE = 1000, COUNT_PER_MIN = 1000, FIELD_M2 = 7140;
+const LS_KEY = 'wealthViz';
+const DEF = {amount:1000000, denom:500, daily:5000, remember:false};
+let S = {...DEF};
+try {
+  const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+  if (saved && saved.remember) S = {...DEF, ...saved};
+} catch(e) {}
+let activeView = 'stack';
+
+const el = id => document.getElementById(id);
+const inr = n => '\u20B9' + Math.round(n).toLocaleString('en-IN');
+const num = n => Math.round(n).toLocaleString('en-IN');
+function fmtHeight(mm){
+  if (mm < 10) return mm.toFixed(1) + ' mm';
+  if (mm < 1000) return (mm/10).toFixed(1) + ' cm';
+  if (mm < 100000) return (mm/1000).toFixed(1) + ' m';
+  return (mm/1000000).toFixed(2) + ' km';
+}
+function fmtWeight(g){
+  if (g < 1000) return Math.round(g) + ' g';
+  if (g < 1000000) return (g/1000).toFixed(1) + ' kg';
+  return (g/1000000).toFixed(2) + ' tonnes';
+}
+function fmtCount(min){
+  min = Math.round(min);
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min/60), m = min % 60;
+  return h + ' hrs' + (m ? ' ' + m + ' min' : '');
+}
+function fmtDays(days){
+  if (!isFinite(days) || days <= 0) return null;
+  days = Math.floor(days);
+  if (days < 365) return days + ' days';
+  const y = Math.floor(days/365), r = days % 365;
+  return y + ' year' + (y > 1 ? 's' : '') + (r ? ', ' + r + ' days' : '');
+}
+function compute(){
+  const d = DENOMS.find(x => x.v === S.denom);
+  const notes = Math.floor(S.amount / S.denom);
+  const rem = S.amount - notes * S.denom;
+  const packets = Math.floor(notes / PACKET), looseNotes = notes % PACKET;
+  const bundles = Math.floor(packets / 10), loosePackets = packets % 10;
+  const heightMm = notes * 0.11, weightG = notes * 1;
+  const areaM2 = notes * (d.w * d.h) / 1e6;
+  return {d, notes, rem, packets, looseNotes, bundles, loosePackets,
+    heightMm, weightG, areaM2, fields: areaM2 / FIELD_M2,
+    countMin: notes / COUNT_PER_MIN,
+    days: S.daily > 0 ? S.amount / S.daily : NaN};
+}
+function setupCanvas(cv){
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return {ctx, w, h};
+}
+function rr(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function shade(hex, f){
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, Math.round(((n >> 16) & 255) * f));
+  const g = Math.min(255, Math.round(((n >> 8) & 255) * f));
+  const b = Math.min(255, Math.round((n & 255) * f));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function drawStack(){
+  const {ctx, w, h} = setupCanvas(el('cv-stack'));
+  const c = compute();
+  ctx.clearRect(0, 0, w, h);
+  if (c.notes === 0){
+    ctx.fillStyle = '#888'; ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Less than one \u20B9' + S.denom + ' note.', w/2, h/2 - 8);
+    ctx.fillText('Increase the amount in settings.', w/2, h/2 + 14);
+    return;
+  }
+  const colW = Math.min(150, w * 0.42);
+  const colX = (w - colW) / 2;
+  const baseY = h - 28, maxH = h - 96;
+  let slabs, unitLabel;
+  if (c.packets === 0){ slabs = 1; unitLabel = 'less than 1 packet'; }
+  else if (c.packets <= 48){ slabs = c.packets; unitLabel = '1 slab = 1 packet (100 notes)'; }
+  else if (c.bundles <= 48){ slabs = c.bundles; unitLabel = '1 slab = 1 bundle (1,000 notes)'; }
+  else { slabs = 48; unitLabel = '1 slab \u2248 ' + num(Math.ceil(c.packets / 48)) + ' packets'; }
+  const slabH = Math.max(3, Math.min(11, maxH / slabs));
+  const stackH = slabH * slabs, topY = baseY - stackH;
+  for (let i = 0; i < slabs; i++){
+    const y = baseY - (i + 1) * slabH;
+    ctx.fillStyle = i % 2 ? shade(c.d.color, 0.92) : c.d.color;
+    rr(ctx, colX, y, colW, slabH - 1, 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(colX + colW * 0.42, y, colW * 0.16, slabH - 1);
+  }
+  ctx.fillStyle = c.d.color;
+  rr(ctx, colX - 8, topY - 26, colW + 16, 24, 3); ctx.fill();
+  ctx.fillStyle = c.d.ink; ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('\u20B9' + S.denom, colX + colW / 2, topY - 9);
+  ctx.strokeStyle = '#999'; ctx.beginPath(); ctx.moveTo(8, baseY + 2); ctx.lineTo(w - 8, baseY + 2); ctx.stroke();
+  ctx.font = '12px sans-serif'; ctx.fillStyle = '#666'; ctx.textAlign = 'left';
+  ctx.fillText(unitLabel, 8, h - 10);
+  const markers = [[1700, 'you \u00B7 1.7m'], [73000, 'Qutub \u00B7 73m']];
+  ctx.textAlign = 'left';
+  markers.forEach(([mm, label]) => {
+    if (c.heightMm > mm){
+      const y = baseY - (mm / c.heightMm) * stackH;
+      ctx.strokeStyle = '#B03A2E'; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(colX - 4, y); ctx.lineTo(colX + colW + 4, y); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#B03A2E';
+      ctx.fillText(label, colX + colW + 10, y + 4);
+    }
+  });
+}
+
+function drawBundles(){
+  const {ctx, w, h} = setupCanvas(el('cv-bundles'));
+  const c = compute();
+  ctx.clearRect(0, 0, w, h);
+  if (c.notes === 0){
+    ctx.fillStyle = '#888'; ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Less than one \u20B9' + S.denom + ' note.', w/2, h/2);
+    return;
+  }
+  const cols = w < 340 ? 4 : 6, gap = 8;
+  const bw = (w - gap * (cols + 1)) / cols, bh = 56;
+  const maxRows = Math.max(1, Math.floor((h - 84) / (bh + gap)));
+  const shown = Math.min(c.bundles, cols * maxRows);
+  const rows = Math.ceil(shown / cols) || 0;
+  let y = 14;
+  for (let r = 0; r < rows; r++){
+    for (let col = 0; col < cols; col++){
+      const i = r * cols + col;
+      if (i >= shown) break;
+      const x = gap + col * (bw + gap);
+      ctx.fillStyle = c.d.color;
+      rr(ctx, x, y, bw, bh, 4); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      for (let p = 1; p < 10; p++){
+        ctx.beginPath(); ctx.moveTo(x + 4, y + p * (bh / 10)); ctx.lineTo(x + bw - 4, y + p * (bh / 10)); ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(x + bw / 2 - 3, y, 6, bh);
+    }
+    y += bh + gap;
+  }
+  let ty = y + 6;
+  ctx.font = '13px sans-serif'; ctx.fillStyle = '#666'; ctx.textAlign = 'left';
+  if (c.bundles > shown) { ctx.fillText('+ ' + num(c.bundles - shown) + ' more bundles', gap, ty); ty += 20; }
+  if (c.loosePackets > 0){
+    ctx.fillText(c.loosePackets + ' loose packet' + (c.loosePackets > 1 ? 's' : '') + ':', gap, ty); ty += 8;
+    const pw = 26, ph = 40;
+    for (let i = 0; i < c.loosePackets; i++){
+      const x = gap + i * (pw + 4);
+      if (x + pw > w - gap) break;
+      ctx.fillStyle = shade(c.d.color, 0.92);
+      rr(ctx, x, ty, pw, ph, 3); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(x + pw / 2 - 2, ty, 4, ph);
+    }
+  } else if (c.looseNotes > 0){
+    ctx.fillText('and ' + num(c.looseNotes) + ' loose notes', gap, ty);
+  }
+}
+
+function drawSpread(){
+  const {ctx, w, h} = setupCanvas(el('cv-spread'));
+  const c = compute();
+  ctx.clearRect(0, 0, w, h);
+  if (c.notes === 0){
+    ctx.fillStyle = '#888'; ctx.font = '15px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Less than one \u20B9' + S.denom + ' note.', w/2, h/2);
+    return;
+  }
+  const nw = 34, gap = 6, nh = Math.round(nw * 66 / 150);
+  const cols = Math.max(1, Math.floor((w + gap) / (nw + gap)));
+  const maxRows = Math.max(1, Math.floor((h - 34) / (nh + gap)));
+  const cap = cols * maxRows;
+  const per = c.notes <= cap ? 1 : Math.ceil(c.notes / cap);
+  const shown = Math.ceil(c.notes / per);
+  const rows = Math.ceil(shown / cols);
+  const gridW = cols * nw + (cols - 1) * gap;
+  const gridH = rows * nh + (rows - 1) * gap;
+  const ox = (w - gridW) / 2, oy = Math.max(8, (h - 28 - gridH) / 2);
+  ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+  for (let i = 0; i < shown; i++){
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = ox + col * (nw + gap), y = oy + row * (nh + gap);
+    ctx.fillStyle = c.d.color;
+    rr(ctx, x, y, nw, nh, 2); ctx.fill();
+    ctx.fillStyle = c.d.ink;
+    ctx.fillText(String(S.denom), x + nw / 2, y + nh / 2 + 3);
+  }
+  if (per > 1){
+    ctx.fillStyle = '#666'; ctx.font = '13px sans-serif';
+    ctx.fillText('each note shown = ' + num(per) + ' real notes', w / 2, h - 10);
+  }
+}
+
+function drawActive(){
+  if (activeView === 'stack') drawStack();
+  else if (activeView === 'bundles') drawBundles();
+  else drawSpread();
+}
+
+function save(){
+  try {
+    if (S.remember) localStorage.setItem(LS_KEY, JSON.stringify({amount: S.amount, denom: S.denom, daily: S.daily, remember: true}));
+    else localStorage.removeItem(LS_KEY);
+  } catch(e) {}
+}
+
+const AMIN = 10000, AMAX = 1000000000;
+function snap(v){
+  if (v < 100000) return Math.round(v / 1000) * 1000;
+  if (v < 10000000) return Math.round(v / 10000) * 10000;
+  return Math.round(v / 100000) * 100000;
+}
+const tToAmt = t => snap(Math.exp(Math.log(AMIN) + (t / 1000) * (Math.log(AMAX) - Math.log(AMIN))));
+const amtToT = a => {
+  a = Math.min(Math.max(a, AMIN), AMAX);
+  return Math.round(1000 * (Math.log(a) - Math.log(AMIN)) / (Math.log(AMAX) - Math.log(AMIN)));
+};
+
+function render(){
+  const c = compute();
+  el('amountText').textContent = inr(S.amount);
+  if (document.activeElement !== el('amountInput')) el('amountInput').value = S.amount;
+  if (document.activeElement !== el('dailyInput')) el('dailyInput').value = S.daily;
+  if (document.activeElement !== el('amountRange')) el('amountRange').value = S.amount >= AMIN ? amtToT(S.amount) : 0;
+  el('rememberChk').checked = S.remember;
+  document.querySelectorAll('#presets button').forEach(b =>
+    b.classList.toggle('on', Number(b.dataset.amt) === S.amount));
+  document.querySelectorAll('#denoms button').forEach(b =>
+    b.classList.toggle('on', Number(b.dataset.denom) === S.denom));
+  let s = '';
+  if (c.rem > 0) s += '<div class="sub">plus ' + inr(c.rem) + ' loose change (not in notes)</div>';
+  el('stats-stack').innerHTML =
+    '<b>' + num(c.notes) + ' notes</b> &middot; Height <b>' + fmtHeight(c.heightMm) +
+    '</b> &middot; Weight <b>' + fmtWeight(c.weightG) + '</b>' +
+    '<div class="sub">' + num(c.packets) + ' packets of 100 notes</div>' + s;
+  el('stats-bundles').innerHTML =
+    '<b>' + num(c.bundles) + ' bundles</b> &middot; ' + num(c.packets) + ' packets &middot; ' +
+    num(c.looseNotes) + ' loose notes' +
+    '<div class="sub">1 bundle = 10 packets = 1,000 notes &middot; ' + num(c.notes) + ' notes total</div>' + s;
+  const fieldTxt = c.fields >= 1
+    ? '&asymp; ' + c.fields.toFixed(2) + ' football fields'
+    : '&asymp; ' + Math.round(c.fields * 100) + '% of a football field';
+  el('stats-spread').innerHTML =
+    'Covers <b>' + num(Math.round(c.areaM2)) + ' m&sup2;</b> &middot; ' + fieldTxt +
+    '<div class="sub">laid flat, edge to edge</div>' + s;
+  const days = fmtDays(c.days);
+  el('extrasText').innerHTML =
+    'Counting: <b>' + fmtCount(c.countMin) + '</b><span class="sub"> at 1,000 notes/min</span><br>' +
+    (days
+      ? 'Lasts: <b>' + days + '</b><span class="sub"> at ' + inr(S.daily) + '/day</span>'
+      : '<span class="sub">Set daily spend in settings to see how long it lasts</span>');
+  drawActive();
+}
+
+function openSheet(){
+  el('sheet').classList.add('open');
+  el('backdrop').classList.add('open');
+}
+function closeSheet(){
+  el('sheet').classList.remove('open');
+  el('backdrop').classList.remove('open');
+}
+el('gearBtn').addEventListener('click', openSheet);
+el('amountBox').addEventListener('click', openSheet);
+el('closeSheet').addEventListener('click', closeSheet);
+el('doneBtn').addEventListener('click', closeSheet);
+el('backdrop').addEventListener('click', closeSheet);
+
+el('amountRange').addEventListener('input', e => {
+  S.amount = tToAmt(Number(e.target.value));
+  render(); save();
+});
+el('amountInput').addEventListener('change', e => {
+  let v = Math.round(Number(e.target.value) || 0);
+  S.amount = Math.min(Math.max(v, 0), AMAX);
+  render(); save();
+});
+el('dailyInput').addEventListener('change', e => {
+  S.daily = Math.max(0, Math.round(Number(e.target.value) || 0));
+  render(); save();
+});
+document.querySelectorAll('#presets button').forEach(b =>
+  b.addEventListener('click', () => { S.amount = Number(b.dataset.amt); render(); save(); }));
+document.querySelectorAll('#denoms button').forEach(b =>
+  b.addEventListener('click', () => { S.denom = Number(b.dataset.denom); render(); save(); }));
+el('rememberChk').addEventListener('change', e => {
+  S.remember = e.target.checked;
+  save(); render();
+});
+document.querySelectorAll('.tabs button').forEach(b =>
+  b.addEventListener('click', () => {
+    activeView = b.dataset.view;
+    document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+    ['stack', 'bundles', 'spread'].forEach(v =>
+      el('view-' + v).classList.toggle('hidden', v !== activeView));
+    drawActive();
+  }));
+
+el('shareBtn').addEventListener('click', async () => {
+  try {
+    const cv = el('cv-' + activeView);
+    const W = cv.clientWidth, H = cv.clientHeight;
+    const off = document.createElement('canvas');
+    off.width = W * 2; off.height = (H + 84) * 2;
+    const octx = off.getContext('2d');
+    octx.setTransform(2, 0, 0, 2, 0, 0);
+    octx.fillStyle = '#F4F1E8'; octx.fillRect(0, 0, W, H + 84);
+    octx.fillStyle = '#1A1A1A'; octx.font = '700 22px sans-serif'; octx.textAlign = 'left';
+    octx.fillText('Wealth in Cash', 16, 32);
+    octx.fillStyle = '#555'; octx.font = '16px sans-serif';
+    octx.fillText(inr(S.amount) + ' in \u20B9' + S.denom + ' notes', 16, 58);
+    octx.drawImage(cv, 0, 84, W, H);
+    const blob = await new Promise(res => off.toBlob(res, 'image/png'));
+    const file = new File([blob], 'wealth.png', {type: 'image/png'});
+    if (navigator.canShare && navigator.canShare({files: [file]})) {
+      await navigator.share({files: [file], title: 'Wealth in Cash'});
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'wealth.png'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch(e) {}
+});
+
+let rz;
+window.addEventListener('resize', () => {
+  clearTimeout(rz);
+  rz = setTimeout(drawActive, 150);
+});
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+render();
+</script>
+</body>
+</html>
